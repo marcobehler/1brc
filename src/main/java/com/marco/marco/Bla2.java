@@ -2,6 +2,7 @@ package com.marco.marco;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.DoubleBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
@@ -94,9 +95,6 @@ public class Bla2 {
         return sections;
     }
 
-    private void proess(Path file, int numThreads, List<FileSection> sections) throws IOException {
-
-    }
 
     private long findNextLineStart(FileChannel channel, long approximatePos, long fileSize) throws IOException {
         if (approximatePos >= fileSize) return fileSize;
@@ -185,6 +183,8 @@ public class Bla2 {
             int keyEnd = position;
             position++; // Skip semicolon
 
+            if (position >= limit) break; // No value after semicolon
+
             // Find value boundaries
             int valueStart = position;
             while (position < limit) {
@@ -195,31 +195,31 @@ public class Bla2 {
 
             int valueEnd = position;
 
-            // Create slices and decode
-            buffer.position(keyStart);
-            buffer.limit(keyEnd);
-            String key = StandardCharsets.UTF_8.decode(buffer).toString();
+            // Create duplicate buffer for decoding to avoid modifying original
+            ByteBuffer keySlice = buffer.duplicate();
+            keySlice.position(keyStart);
+            keySlice.limit(keyEnd);
+            String key = StandardCharsets.UTF_8.decode(keySlice).toString();
 
-            buffer.position(valueStart);
-            buffer.limit(valueEnd);
-            String valueStr = StandardCharsets.UTF_8.decode(buffer).toString();
+            ByteBuffer valueSlice = buffer.duplicate();
+            valueSlice.position(valueStart);
+            valueSlice.limit(valueEnd);
+            String valueStr = StandardCharsets.UTF_8.decode(valueSlice).toString();
 
-            double value = Double.parseDouble(valueStr);
-            consumer.accept(key, value);
+            try {
+                double value = Double.parseDouble(valueStr);
+              //  consumer.accept(key, value);
+            } catch (NumberFormatException e) {
+                System.err.println("Failed to parse value: " + valueStr + " for key: " + key);
+            }
 
-            // Reset limit and skip newlines
-            buffer.limit(limit);
-            position = valueEnd;
+            // Skip newlines
             while (position < limit &&
                     (buffer.get(position) == NEWLINE ||
                             buffer.get(position) == CARRIAGE_RETURN)) {
                 position++;
             }
         }
-
-        // Reset buffer state
-        buffer.position(0);
-        buffer.limit(limit);
     }
 
     private static byte[] expandBuffer(byte[] buffer) {
@@ -232,20 +232,38 @@ public class Bla2 {
         void accept(String key, double value);
     }
 
+    // h e l l o ;
+    // 0 1 2 3 4 5 6
     private void processChunk(MappedByteBuffer buffer, StringBuilder lineBuilder) {
+        int mark = 0;
+        buffer.mark();
         while (buffer.hasRemaining()) {
             byte b = buffer.get();
-            char c = (char) (b & 0xFF);
+            if (b == SEMICOLON) {
+               int keyLength =  buffer.position() - mark - 1;
+               byte[] keyArray = new byte[keyLength];
+               buffer.reset();
+               buffer.get(keyArray, 0, keyLength);
+                buffer.get(); // skip over the semicolon again
+                buffer.mark();
+                mark = buffer.position();
 
-            if (c == '\n') {
-                String line = lineBuilder.toString().trim();
-                if (!line.isEmpty()) {
-                    processLine(line);
-                }
-                lineBuilder.setLength(0);
-            } else if (c != '\r') {
-                lineBuilder.append(c);
-            }
+                String t = new String(keyArray, StandardCharsets.UTF_8);
+
+              //  System.out.println("new String(keyArray, StandardCharsets.UTF_8) = " + new String(keyArray, StandardCharsets.UTF_8));
+           }
+           else if (b == NEWLINE) {
+               int valueLength = buffer.position() - mark - 1;
+               byte[] valueArray = new byte[valueLength];
+                buffer.reset();
+                buffer.get(valueArray, 0, valueLength);
+                buffer.get(); // skip over semicolon again
+                buffer.mark();
+                mark = buffer.position();
+                String t = new String(valueArray, StandardCharsets.UTF_8);
+                //double value = ByteBuffer.wrap(valueArray).getDouble();
+               // System.out.println("new String(keyArray, StandardCharsets.UTF_8) = " + new String(valueArray, StandardCharsets.UTF_8));
+           }
         }
     }
 
