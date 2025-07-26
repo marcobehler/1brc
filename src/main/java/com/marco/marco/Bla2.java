@@ -41,7 +41,30 @@ public class Bla2 {
             List<FileSection> sections = splitInSections(numThreads, fileSize, chunkSize, channel);
             logTime();
 
+            Thread[] workers = new Thread[numThreads];
+            for (int i = 0; i < workers.length; i++) {
+                int finalI = i;
+                workers[i] = new Thread(() -> {
+                    try {
+                        processLargeSection(channel, file, sections.get(finalI));
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+                workers[i].setName("Worker-Thread-" + i);
+                workers[i].start();
+            }
+
+            for (Thread worker : workers) {
+                try {
+                    worker.join();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
+
+
 
     }
 
