@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -13,6 +14,10 @@ import java.util.List;
 public class Bla2 {
 
     static long start;
+
+    private static final byte SEMICOLON = (byte) ';';
+    private static final byte NEWLINE = (byte) '\n';
+    private static final byte CARRIAGE_RETURN = (byte) '\r';
 
     public static void main(String[] args) throws IOException {
         Path path = Path.of("./measurements.txt");
@@ -119,13 +124,6 @@ public class Bla2 {
                 currentPos += mappingSize;
                 remainingBytes -= mappingSize;
             }
-
-        // Handle any remaining line content
-        if (!lineBuilder.isEmpty()) {
-            processLine(lineBuilder.toString().trim());
-        }
-
-
     }
 
     private long adjustToLineBoundary(FileChannel channel, long startPos, long desiredSize) throws IOException {
@@ -145,6 +143,70 @@ public class Bla2 {
         }
 
         return lastNewlinePos != -1 ? lastNewlinePos - startPos : desiredSize;
+    }
+
+    // Zero-copy version using CharsetDecoder for ultimate performance
+    public static void parseZeroCopy(MappedByteBuffer buffer, RecordConsumer consumer) {
+        int limit = buffer.limit();
+        int position = 0;
+
+        while (position < limit) {
+            // Find key boundaries
+            int keyStart = position;
+            while (position < limit && buffer.get(position) != SEMICOLON) {
+                position++;
+            }
+
+            if (position >= limit) break;
+
+            int keyEnd = position;
+            position++; // Skip semicolon
+
+            // Find value boundaries
+            int valueStart = position;
+            while (position < limit) {
+                byte b = buffer.get(position);
+                if (b == NEWLINE || b == CARRIAGE_RETURN) break;
+                position++;
+            }
+
+            int valueEnd = position;
+
+            // Create slices and decode
+            buffer.position(keyStart);
+            buffer.limit(keyEnd);
+            String key = StandardCharsets.UTF_8.decode(buffer).toString();
+
+            buffer.position(valueStart);
+            buffer.limit(valueEnd);
+            String valueStr = StandardCharsets.UTF_8.decode(buffer).toString();
+
+            double value = Double.parseDouble(valueStr);
+            consumer.accept(key, value);
+
+            // Reset limit and skip newlines
+            buffer.limit(limit);
+            position = valueEnd;
+            while (position < limit &&
+                    (buffer.get(position) == NEWLINE ||
+                            buffer.get(position) == CARRIAGE_RETURN)) {
+                position++;
+            }
+        }
+
+        // Reset buffer state
+        buffer.position(0);
+        buffer.limit(limit);
+    }
+
+    private static byte[] expandBuffer(byte[] buffer) {
+        byte[] newBuffer = new byte[buffer.length * 2];
+        System.arraycopy(buffer, 0, newBuffer, 0, buffer.length);
+        return newBuffer;
+    }
+
+    public interface RecordConsumer {
+        void accept(String key, double value);
     }
 
     private void processChunk(MappedByteBuffer buffer, StringBuilder lineBuilder) {
