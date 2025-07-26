@@ -147,7 +147,7 @@ public class Bla2 {
 
     private long adjustToLineBoundary(FileChannel channel, long startPos, long desiredSize) throws IOException {
         // Find the last newline within the desired mapping size
-        ByteBuffer searchBuffer = ByteBuffer.allocate(8192);
+        ByteBuffer searchBuffer = ByteBuffer.allocate(256);
         long searchStart = startPos + desiredSize - searchBuffer.capacity();
         long lastNewlinePos = -1;
 
@@ -163,10 +163,6 @@ public class Bla2 {
 
         return lastNewlinePos != -1 ? lastNewlinePos - startPos : desiredSize;
     }
-
-
-
-
 
 
 
@@ -188,8 +184,7 @@ public class Bla2 {
                 buffer.mark();
                 mark = buffer.position();
 
-                String t = new String(keyArray, StandardCharsets.UTF_8);
-
+                String t = new String(keyArray, StandardCharsets.UTF_8); // expensive
                 //  System.out.println("new String(keyArray, StandardCharsets.UTF_8) = " + new String(keyArray, StandardCharsets.UTF_8));
             } else if (b == NEWLINE) {
                 int valueLength = buffer.position() - mark - 1;
@@ -200,25 +195,12 @@ public class Bla2 {
                 buffer.mark();
                 mark = buffer.position();
 
-                Double d = Double.valueOf(new String(valueArray, StandardCharsets.UTF_8));
-                //double value = ByteBuffer.wrap(valueArray).getDouble();
+                Double d = Double.valueOf(new String(valueArray, StandardCharsets.UTF_8)); // expenive
                 // System.out.println("new String(keyArray, StandardCharsets.UTF_8) = " + new String(valueArray, StandardCharsets.UTF_8));
             }
         }
     }
 
-    private void processLine(String line) {
-        String[] parts = line.split(";", 2);
-        if (parts.length == 2) {
-            processKeyValue(parts[0], parts[1]);
-        }
-    }
-
-    private void processKeyValue(String key, String value) {
-        // Your processing logic
-        //  System.out.println("Thread " + Thread.currentThread().getName() +
-        //        ": " + key + " = " + value);
-    }
 
     record FileSection(long startPos, long endPos, int threadId) {
     }
