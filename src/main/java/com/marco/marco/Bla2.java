@@ -98,7 +98,6 @@ public class Bla2 {
     private long findNextLineStart(FileChannel channel, long approximatePos, long fileSize) throws IOException {
         if (approximatePos >= fileSize) return fileSize;
 
-        // Use small buffer for boundary detection to avoid mapping issues
         ByteBuffer searchBuffer = ByteBuffer.allocate(8192);
         long searchPos = approximatePos;
 
@@ -165,90 +164,18 @@ public class Bla2 {
         return lastNewlinePos != -1 ? lastNewlinePos - startPos : desiredSize;
     }
 
-    // Zero-copy version using CharsetDecoder for ultimate performance
-    public static void parseZeroCopy(MappedByteBuffer buffer, RecordConsumer consumer) {
-        int limit = buffer.limit();
-        int position = 0;
 
-        while (position < limit) {
-            // Find key boundaries
-            int keyStart = position;
-            while (position < limit && buffer.get(position) != SEMICOLON) {
-                position++;
-            }
 
-            if (position >= limit) break;
 
-            int keyEnd = position;
-            position++; // Skip semicolon
 
-            if (position >= limit) break; // No value after semicolon
 
-            // Find value boundaries
-            int valueStart = position;
-            while (position < limit) {
-                byte b = buffer.get(position);
-                if (b == NEWLINE || b == CARRIAGE_RETURN) break;
-                position++;
-            }
 
-            int valueEnd = position;
-
-            // Create duplicate buffer for decoding to avoid modifying original
-            ByteBuffer keySlice = buffer.duplicate();
-            keySlice.position(keyStart);
-            keySlice.limit(keyEnd);
-            String key = StandardCharsets.UTF_8.decode(keySlice).toString();
-
-            ByteBuffer valueSlice = buffer.duplicate();
-            valueSlice.position(valueStart);
-            valueSlice.limit(valueEnd);
-            String valueStr = StandardCharsets.UTF_8.decode(valueSlice).toString();
-
-            try {
-                double value = Double.parseDouble(valueStr);
-                //  consumer.accept(key, value);
-            } catch (NumberFormatException e) {
-                System.err.println("Failed to parse value: " + valueStr + " for key: " + key);
-            }
-
-            // Skip newlines
-            while (position < limit &&
-                    (buffer.get(position) == NEWLINE ||
-                            buffer.get(position) == CARRIAGE_RETURN)) {
-                position++;
-            }
-        }
-    }
-
-    private static byte[] expandBuffer(byte[] buffer) {
-        byte[] newBuffer = new byte[buffer.length * 2];
-        System.arraycopy(buffer, 0, newBuffer, 0, buffer.length);
-        return newBuffer;
-    }
-
-    public interface RecordConsumer {
-        void accept(String key, double value);
-    }
-
-    public static double bytesToDouble(byte[] bytes) {
-        long longBits = ((long) bytes[0] & 0xFF) << 56 |
-                ((long) bytes[1] & 0xFF) << 48 |
-                ((long) bytes[2] & 0xFF) << 40 |
-                ((long) bytes[3] & 0xFF) << 32 |
-                ((long) bytes[4] & 0xFF) << 24 |
-                ((long) bytes[5] & 0xFF) << 16 |
-                ((long) bytes[6] & 0xFF) << 8  |
-                ((long) bytes[7] & 0xFF);
-        return Double.longBitsToDouble(longBits);
-    }
 
     // h e l l o ;
     // 0 1 2 3 4 5 6
     private void processChunk(MappedByteBuffer buffer, StringBuilder lineBuilder) {
         int mark = 0;
         buffer.mark();
-        StringBuilder line = new StringBuilder();
 
         while (buffer.hasRemaining()) {
             byte b = buffer.get();
@@ -260,7 +187,6 @@ public class Bla2 {
                 buffer.get(); // skip over the semicolon again
                 buffer.mark();
                 mark = buffer.position();
-
 
                 String t = new String(keyArray, StandardCharsets.UTF_8);
 
