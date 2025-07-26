@@ -66,7 +66,6 @@ public class Bla2 {
         }
 
 
-
     }
 
     private static void logTime() {
@@ -120,31 +119,31 @@ public class Bla2 {
     }
 
     private void processLargeSection(FileChannel channel, Path file, FileSection section) throws IOException {
-            long remainingBytes = section.endPos - section.startPos;
-            long currentPos = section.startPos;
-            StringBuilder lineBuilder = new StringBuilder();
+        long remainingBytes = section.endPos - section.startPos;
+        long currentPos = section.startPos;
+        StringBuilder lineBuilder = new StringBuilder();
 
-            while (remainingBytes > 0) {
-                // Map chunks that fit within Integer.MAX_VALUE
-                long mappingSize = Math.min(remainingBytes, MAX_MAPPING_SIZE);
+        while (remainingBytes > 0) {
+            // Map chunks that fit within Integer.MAX_VALUE
+            long mappingSize = Math.min(remainingBytes, MAX_MAPPING_SIZE);
 
-                // Adjust mapping size to end at line boundary (except for last chunk)
-                if (remainingBytes > MAX_MAPPING_SIZE) {
-                    mappingSize = adjustToLineBoundary(channel, currentPos, mappingSize);
-                }
-
-                MappedByteBuffer buffer = channel.map(
-                        FileChannel.MapMode.READ_ONLY,
-                        currentPos,
-                        mappingSize
-                );
-
-                // Process this chunk
-                processChunk(buffer, lineBuilder);
-
-                currentPos += mappingSize;
-                remainingBytes -= mappingSize;
+            // Adjust mapping size to end at line boundary (except for last chunk)
+            if (remainingBytes > MAX_MAPPING_SIZE) {
+                mappingSize = adjustToLineBoundary(channel, currentPos, mappingSize);
             }
+
+            MappedByteBuffer buffer = channel.map(
+                    FileChannel.MapMode.READ_ONLY,
+                    currentPos,
+                    mappingSize
+            );
+
+            // Process this chunk
+            processChunk(buffer, lineBuilder);
+
+            currentPos += mappingSize;
+            remainingBytes -= mappingSize;
+        }
     }
 
     private long adjustToLineBoundary(FileChannel channel, long startPos, long desiredSize) throws IOException {
@@ -208,7 +207,7 @@ public class Bla2 {
 
             try {
                 double value = Double.parseDouble(valueStr);
-              //  consumer.accept(key, value);
+                //  consumer.accept(key, value);
             } catch (NumberFormatException e) {
                 System.err.println("Failed to parse value: " + valueStr + " for key: " + key);
             }
@@ -237,24 +236,26 @@ public class Bla2 {
     private void processChunk(MappedByteBuffer buffer, StringBuilder lineBuilder) {
         int mark = 0;
         buffer.mark();
+        StringBuilder line = new StringBuilder();
+
         while (buffer.hasRemaining()) {
             byte b = buffer.get();
             if (b == SEMICOLON) {
-               int keyLength =  buffer.position() - mark - 1;
-               byte[] keyArray = new byte[keyLength];
-               buffer.reset();
-               buffer.get(keyArray, 0, keyLength);
+                int keyLength = buffer.position() - mark - 1;
+                byte[] keyArray = new byte[keyLength];
+                buffer.reset();
+                buffer.get(keyArray, 0, keyLength);
                 buffer.get(); // skip over the semicolon again
                 buffer.mark();
                 mark = buffer.position();
 
+
                 String t = new String(keyArray, StandardCharsets.UTF_8);
 
-              //  System.out.println("new String(keyArray, StandardCharsets.UTF_8) = " + new String(keyArray, StandardCharsets.UTF_8));
-           }
-           else if (b == NEWLINE) {
-               int valueLength = buffer.position() - mark - 1;
-               byte[] valueArray = new byte[valueLength];
+                //  System.out.println("new String(keyArray, StandardCharsets.UTF_8) = " + new String(keyArray, StandardCharsets.UTF_8));
+            } else if (b == NEWLINE) {
+                int valueLength = buffer.position() - mark - 1;
+                byte[] valueArray = new byte[valueLength];
                 buffer.reset();
                 buffer.get(valueArray, 0, valueLength);
                 buffer.get(); // skip over semicolon again
@@ -262,8 +263,8 @@ public class Bla2 {
                 mark = buffer.position();
                 String t = new String(valueArray, StandardCharsets.UTF_8);
                 //double value = ByteBuffer.wrap(valueArray).getDouble();
-               // System.out.println("new String(keyArray, StandardCharsets.UTF_8) = " + new String(valueArray, StandardCharsets.UTF_8));
-           }
+                // System.out.println("new String(keyArray, StandardCharsets.UTF_8) = " + new String(valueArray, StandardCharsets.UTF_8));
+            }
         }
     }
 
@@ -276,9 +277,10 @@ public class Bla2 {
 
     private void processKeyValue(String key, String value) {
         // Your processing logic
-      //  System.out.println("Thread " + Thread.currentThread().getName() +
+        //  System.out.println("Thread " + Thread.currentThread().getName() +
         //        ": " + key + " = " + value);
     }
 
-    record FileSection(long startPos, long endPos, int threadId) {}
+    record FileSection(long startPos, long endPos, int threadId) {
+    }
 }
