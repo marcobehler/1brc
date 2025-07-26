@@ -231,6 +231,18 @@ public class Bla2 {
         void accept(String key, double value);
     }
 
+    public static double bytesToDouble(byte[] bytes) {
+        long longBits = ((long) bytes[0] & 0xFF) << 56 |
+                ((long) bytes[1] & 0xFF) << 48 |
+                ((long) bytes[2] & 0xFF) << 40 |
+                ((long) bytes[3] & 0xFF) << 32 |
+                ((long) bytes[4] & 0xFF) << 24 |
+                ((long) bytes[5] & 0xFF) << 16 |
+                ((long) bytes[6] & 0xFF) << 8  |
+                ((long) bytes[7] & 0xFF);
+        return Double.longBitsToDouble(longBits);
+    }
+
     // h e l l o ;
     // 0 1 2 3 4 5 6
     private void processChunk(MappedByteBuffer buffer, StringBuilder lineBuilder) {
@@ -261,7 +273,8 @@ public class Bla2 {
                 buffer.get(); // skip over semicolon again
                 buffer.mark();
                 mark = buffer.position();
-                String t = new String(valueArray, StandardCharsets.UTF_8);
+
+                Double d = Double.valueOf(new String(valueArray, StandardCharsets.UTF_8));
                 //double value = ByteBuffer.wrap(valueArray).getDouble();
                 // System.out.println("new String(keyArray, StandardCharsets.UTF_8) = " + new String(valueArray, StandardCharsets.UTF_8));
             }
