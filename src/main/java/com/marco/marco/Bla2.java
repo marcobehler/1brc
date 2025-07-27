@@ -2,15 +2,13 @@ package com.marco.marco;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.DoubleBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class Bla2 {
 
@@ -120,7 +118,7 @@ public class Bla2 {
     private void processLargeSection(FileChannel channel, Path file, FileSection section) throws IOException {
         long remainingBytes = section.endPos - section.startPos;
         long currentPos = section.startPos;
-        StringBuilder lineBuilder = new StringBuilder();
+  
 
         while (remainingBytes > 0) {
             // Map chunks that fit within Integer.MAX_VALUE
@@ -138,7 +136,7 @@ public class Bla2 {
             );
 
             // Process this chunk
-            processChunk(buffer, lineBuilder);
+            processChunk(buffer);
 
             currentPos += mappingSize;
             remainingBytes -= mappingSize;
@@ -169,12 +167,16 @@ public class Bla2 {
 
     // h e l l o ;
     // 0 1 2 3 4 5 6
-    private void processChunk(MappedByteBuffer buffer, StringBuilder lineBuilder) {
+    private Map<String, List<Double>> processChunk(MappedByteBuffer buffer) {
         int mark = 0;
         buffer.mark();
 
+        Map<String, List<Double>> measurements = new HashMap<>();
+        String currentCity = null;
+
         while (buffer.hasRemaining()) {
             byte b = buffer.get();
+
             if (b == SEMICOLON) {
                 int keyLength = buffer.position() - mark - 1;
                 byte[] keyArray = new byte[keyLength];
@@ -184,9 +186,10 @@ public class Bla2 {
                 buffer.mark();
                 mark = buffer.position();
 
-                String t = new String(keyArray, StandardCharsets.UTF_8); // expensive
+                currentCity = new String(keyArray, StandardCharsets.UTF_8); // expensive
+               // measurements.putIfAbsent(currentCity, new LinkedList<>());
                 //  System.out.println("new String(keyArray, StandardCharsets.UTF_8) = " + new String(keyArray, StandardCharsets.UTF_8));
-            } else if (b == NEWLINE) {
+            }  else if (b == NEWLINE) {
                 int valueLength = buffer.position() - mark - 1;
                 byte[] valueArray = new byte[valueLength];
                 buffer.reset();
@@ -195,13 +198,19 @@ public class Bla2 {
                 buffer.mark();
                 mark = buffer.position();
 
-                Double d = Double.valueOf(new String(valueArray, StandardCharsets.UTF_8)); // expenive
+                double d = Double.parseDouble(new String(valueArray, StandardCharsets.UTF_8)); // expenive
+                measurements.get(currentCity).add(d);
+                //measurements.add(new Measurement(currentCity, d));
+                //double value = ByteBuffer.wrap(valueArray).getDouble();
                 // System.out.println("new String(keyArray, StandardCharsets.UTF_8) = " + new String(valueArray, StandardCharsets.UTF_8));
             }
         }
+        return measurements;
     }
 
 
     record FileSection(long startPos, long endPos, int threadId) {
     }
+
+    record Measurement(String city, double measurement) {}
 }
