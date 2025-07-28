@@ -150,7 +150,7 @@ public class Bla2 {
         long lastNewlinePos = -1;
 
         searchBuffer.clear();
-        int bytesRead = channel.read(searchBuffer, searchStart);
+        channel.read(searchBuffer, searchStart);
         searchBuffer.flip();
 
         while (searchBuffer.hasRemaining()) {
@@ -178,31 +178,31 @@ public class Bla2 {
             byte b = buffer.get();
 
             if (b == SEMICOLON) {
-                int keyLength = buffer.position() - mark - 1;
-                byte[] keyArray = new byte[keyLength];
+                int cityLength = buffer.position() - mark - 1;
+                byte[] cityAsBytes = new byte[cityLength];
                 buffer.reset();
-                buffer.get(keyArray, 0, keyLength);
+                buffer.get(cityAsBytes, 0, cityLength);
                 buffer.get(); // skip over the semicolon again
                 buffer.mark();
                 mark = buffer.position();
 
-                currentCity = new String(keyArray, StandardCharsets.UTF_8); // expensive
+                currentCity = new String(cityAsBytes, StandardCharsets.UTF_8); // expensive
                // measurements.putIfAbsent(currentCity, new LinkedList<>());
-                //  System.out.println("new String(keyArray, StandardCharsets.UTF_8) = " + new String(keyArray, StandardCharsets.UTF_8));
-            }  else if (b == NEWLINE) {
-                int valueLength = buffer.position() - mark - 1;
-                byte[] valueArray = new byte[valueLength];
+                //  System.out.println("new String(cityAsBytes, StandardCharsets.UTF_8) = " + new String(cityAsBytes, StandardCharsets.UTF_8));
+            }  else if (b == NEWLINE || !buffer.hasRemaining()) {
+                int temperatureLength = buffer.position() - mark - 1;
+                byte[] temperatureAsBytes = new byte[temperatureLength];
                 buffer.reset();
-                buffer.get(valueArray, 0, valueLength);
+                buffer.get(temperatureAsBytes, 0, temperatureLength);
                 buffer.get(); // skip over semicolon again
                 buffer.mark();
                 mark = buffer.position();
 
-                double d = Double.parseDouble(new String(valueArray, StandardCharsets.UTF_8)); // expenive
-                measurements.get(currentCity).add(d);
+                double d = Double.parseDouble(new String(temperatureAsBytes, StandardCharsets.UTF_8)); // expenive
+                //measurements.get(currentCity).add(d);
                 //measurements.add(new Measurement(currentCity, d));
-                //double value = ByteBuffer.wrap(valueArray).getDouble();
-                // System.out.println("new String(keyArray, StandardCharsets.UTF_8) = " + new String(valueArray, StandardCharsets.UTF_8));
+                //double value = ByteBuffer.wrap(temperatureAsBytes).getDouble();
+                // System.out.println("new String(keyArray, StandardCharsets.UTF_8) = " + new String(temperatureAsBytes, StandardCharsets.UTF_8));
             }
         }
         return measurements;
